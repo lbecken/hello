@@ -14,6 +14,9 @@ class SpeechToTextApp {
         this.currentEngineName = null;
         this.finalTranscript = '';
 
+        // WebSocket client for intent interpretation
+        this.wsClient = null;
+
         // DOM Elements
         this.elements = {
             engineSelector: document.getElementById('engineSelector'),
@@ -26,7 +29,10 @@ class SpeechToTextApp {
             historyContainer: document.getElementById('historyContainer'),
             loadingProgress: document.getElementById('loadingProgress'),
             loadingProgressBar: document.getElementById('loadingProgressBar'),
-            engineInfo: document.getElementById('engineInfo')
+            engineInfo: document.getElementById('engineInfo'),
+            intentResults: document.getElementById('intentResults'),
+            actionResults: document.getElementById('actionResults'),
+            wsStatus: document.getElementById('wsStatus')
         };
     }
 
@@ -42,8 +48,56 @@ class SpeechToTextApp {
         // Register available engines
         this.registerEngines();
 
+        // Initialize WebSocket client
+        this.initializeWebSocket();
+
         // Load default engine (Vosk)
         await this.switchEngine('vosk');
+    }
+
+    /**
+     * Initialize WebSocket connection to backend
+     */
+    initializeWebSocket() {
+        if (typeof WebSocketClient === 'undefined') {
+            console.warn('WebSocketClient not available, intent interpretation disabled');
+            return;
+        }
+
+        this.wsClient = new WebSocketClient('ws://localhost:8081');
+
+        // Set up WebSocket callbacks
+        this.wsClient.on('onConnect', (data) => {
+            console.log('✅ Connected to Intent Interpreter');
+            if (this.elements.wsStatus) {
+                this.elements.wsStatus.textContent = `🟢 Connected (${data?.mode || 'unknown'} mode)`;
+                this.elements.wsStatus.className = 'ws-status connected';
+            }
+        });
+
+        this.wsClient.on('onDisconnect', () => {
+            console.log('❌ Disconnected from Intent Interpreter');
+            if (this.elements.wsStatus) {
+                this.elements.wsStatus.textContent = '🔴 Disconnected';
+                this.elements.wsStatus.className = 'ws-status disconnected';
+            }
+        });
+
+        this.wsClient.on('onIntent', (data) => {
+            this.displayIntent(data.intent);
+        });
+
+        this.wsClient.on('onActionResult', (data) => {
+            this.displayActionResult(data.result, data.intent);
+        });
+
+        this.wsClient.on('onError', (error) => {
+            console.error('WebSocket error:', error);
+            this.showError(`Intent service error: ${error.message}`);
+        });
+
+        // Connect to server
+        this.wsClient.connect();
     }
 
     /**
@@ -150,6 +204,11 @@ class SpeechToTextApp {
         this.currentEngine.onPartialResult((text) => {
             this.elements.interimResults.textContent = text;
             this.elements.interimResults.classList.remove('empty');
+
+            // Send partial text to WebSocket (optional)
+            if (this.wsClient && this.wsClient.isConnected()) {
+                this.wsClient.sendSTT(text, true);
+            }
         });
 
         // Final results
@@ -158,6 +217,11 @@ class SpeechToTextApp {
             this.elements.finalResults.textContent = this.finalTranscript;
             this.elements.finalResults.classList.remove('empty');
             this.addToHistory(text);
+
+            // Send final text to WebSocket for intent interpretation
+            if (this.wsClient && this.wsClient.isConnected()) {
+                this.wsClient.sendSTT(text, false);
+            }
         });
 
         // Errors
@@ -365,6 +429,93 @@ class SpeechToTextApp {
         }
 
         this.elements.engineInfo.innerHTML = html;
+    }
+
+    /**
+     * Display interpreted intent
+     */
+    displayIntent(intent) {
+        if (!this.elements.intentResults) return;
+
+        const confidence = Math.round((intent.confidence || 0) * 100);
+        let html = `
+            <div class="intent-item">
+                <div class="intent-header">
+                    <span class="intent-name">${intent.intent}</span>
+                    <span class="confidence-badge confidence-${this.getConfidenceLevel(intent.confidence)}">
+                        ${confidence}% confident
+                    </span>
+                </div>
+        `;
+
+        if (intent.action || intent.target) {
+            html += '<div class="intent-details">';
+            if (intent.action) {
+                html += `<span class="intent-detail">Action: <strong>${intent.action}</strong></span>`;
+            }
+            if (intent.target) {
+                html += `<span class="intent-detail">Target: <strong>${intent.target}</strong></span>`;
+            }
+            html += '</div>';
+        }
+
+        if (intent.parameters && Object.keys(intent.parameters).length > 0) {
+            html += `<div class="intent-params">Parameters: ${JSON.stringify(intent.parameters)}</div>`;
+        }
+
+        if (intent.suggestion) {
+            html += `<div class="intent-suggestion">💡 ${intent.suggestion}</div>`;
+        }
+
+        html += '</div>';
+
+        this.elements.intentResults.innerHTML = html;
+        this.elements.intentResults.classList.remove('empty');
+    }
+
+    /**
+     * Display action execution result
+     */
+    displayActionResult(result, intent) {
+        if (!this.elements.actionResults) return;
+
+        const statusClass = result.success ? 'success' : 'error';
+        let html = `
+            <div class="action-result ${statusClass}">
+                <div class="action-message">${result.message}</div>
+        `;
+
+        if (result.state) {
+            html += '<div class="action-state">';
+            html += '<strong>Device State:</strong><ul>';
+            for (const [key, value] of Object.entries(result.state)) {
+                html += `<li>${key}: <strong>${JSON.stringify(value)}</strong></li>`;
+            }
+            html += '</ul></div>';
+        }
+
+        if (result.data) {
+            html += '<div class="action-data">';
+            html += '<strong>Data:</strong><ul>';
+            for (const [key, value] of Object.entries(result.data)) {
+                html += `<li>${key}: <strong>${value}</strong></li>`;
+            }
+            html += '</ul></div>';
+        }
+
+        html += '</div>';
+
+        this.elements.actionResults.innerHTML = html;
+        this.elements.actionResults.classList.remove('empty');
+    }
+
+    /**
+     * Get confidence level for styling
+     */
+    getConfidenceLevel(confidence) {
+        if (confidence >= 0.8) return 'high';
+        if (confidence >= 0.5) return 'medium';
+        return 'low';
     }
 }
 

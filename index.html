@@ -299,12 +299,175 @@
             font-size: 13px;
             color: #666;
         }
+
+        /* Intent Interpretation Styles */
+        .intent-section {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid #e5e7eb;
+        }
+
+        .ws-status {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            background: #f3f4f6;
+            color: #6b7280;
+        }
+
+        .ws-status.connected {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .ws-status.disconnected {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .intent-box, .action-box {
+            margin-bottom: 20px;
+        }
+
+        .intent-item {
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+        }
+
+        .intent-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .intent-name {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1f2937;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .confidence-badge {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .confidence-high {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .confidence-medium {
+            background: #fed7aa;
+            color: #92400e;
+        }
+
+        .confidence-low {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .intent-details {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .intent-detail {
+            font-size: 13px;
+            color: #6b7280;
+        }
+
+        .intent-detail strong {
+            color: #1f2937;
+        }
+
+        .intent-params {
+            margin-top: 8px;
+            padding: 8px 12px;
+            background: #f9fafb;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #6b7280;
+            font-family: monospace;
+        }
+
+        .intent-suggestion {
+            margin-top: 10px;
+            padding: 8px 12px;
+            background: #eff6ff;
+            border-left: 3px solid #3b82f6;
+            border-radius: 4px;
+            font-size: 13px;
+            color: #1e40af;
+        }
+
+        .action-result {
+            padding: 15px;
+            border-radius: 8px;
+            background: white;
+        }
+
+        .action-result.success {
+            border-left: 4px solid #10b981;
+        }
+
+        .action-result.error {
+            border-left: 4px solid #ef4444;
+        }
+
+        .action-message {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .action-result.success .action-message {
+            color: #065f46;
+        }
+
+        .action-result.error .action-message {
+            color: #991b1b;
+        }
+
+        .action-state, .action-data {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .action-state ul, .action-data ul {
+            list-style: none;
+            margin: 8px 0 0 0;
+            padding: 0;
+        }
+
+        .action-state li, .action-data li {
+            padding: 4px 0;
+            font-size: 14px;
+            color: #4b5563;
+        }
+
+        .action-state strong, .action-data strong {
+            color: #1f2937;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🎤 Speech-to-Text</h1>
-        <p class="subtitle">Multi-Engine: On-Device WebAssembly STT (Vosk & Whisper)</p>
+        <h1>🎤 Speech-to-Text + Intent Interpreter</h1>
+        <p class="subtitle">Phase 3: STT → WebSocket → LLM Intent → Action Execution</p>
 
         <!-- Engine Selector -->
         <div class="engine-selector-container">
@@ -344,6 +507,20 @@
             <strong>🚀 Loading engine information...</strong>
         </div>
 
+        <!-- Intent Interpretation Results -->
+        <div class="intent-section">
+            <div class="results-label">🤖 Intent Interpretation</div>
+            <div class="ws-status" id="wsStatus">⚫ Connecting...</div>
+            <div class="results-box intent-box empty" id="intentResults">
+                Interpreted intent will appear here...
+            </div>
+
+            <div class="results-label">⚙️ Action Result</div>
+            <div class="results-box action-box empty" id="actionResults">
+                Action execution result will appear here...
+            </div>
+        </div>
+
         <div class="transcript-history">
             <div class="results-label">Transcript History</div>
             <div id="historyContainer"></div>
@@ -363,6 +540,7 @@
     <script src="js/core/STTEngine.js"></script>
     <script src="js/engines/VoskEngine.js"></script>
     <script src="js/engines/WhisperEngine.js"></script>
+    <script src="js/core/WebSocketClient.js"></script>
     <script src="js/core/app.js"></script>
 </body>
 </html>

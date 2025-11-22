@@ -1,0 +1,19 @@
+{
+  "name": "stt-intent-backend",
+  "version": "1.0.0",
+  "description": "WebSocket backend for STT intent interpretation",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "keywords": ["websocket", "llm", "intent", "stt"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "ws": "^8.16.0",
+    "openai": "^4.28.0",
+    "dotenv": "^16.4.0"
+  }
+}

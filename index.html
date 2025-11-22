@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Speech-to-Text - Phase 2: WASM</title>
+    <title>Speech-to-Text - Multi-Engine</title>
     <style>
         * {
             margin: 0;
@@ -40,6 +40,42 @@
             color: #666;
             margin-bottom: 30px;
             font-size: 14px;
+        }
+
+        .engine-selector-container {
+            margin-bottom: 20px;
+        }
+
+        .engine-selector-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .engine-selector {
+            width: 100%;
+            padding: 12px 16px;
+            font-size: 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            background: white;
+            color: #333;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .engine-selector:hover {
+            border-color: #667eea;
+        }
+
+        .engine-selector:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
 
         .status {
@@ -253,12 +289,31 @@
             color: #10b981;
             font-weight: bold;
         }
+
+        .engine-notes {
+            margin-top: 10px;
+        }
+
+        .engine-notes .note {
+            padding: 5px 0;
+            font-size: 13px;
+            color: #666;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🎤 Speech-to-Text</h1>
-        <p class="subtitle">Phase 2: On-Device WebAssembly STT (Vosk)</p>
+        <p class="subtitle">Multi-Engine: On-Device WebAssembly STT (Vosk & Whisper)</p>
+
+        <!-- Engine Selector -->
+        <div class="engine-selector-container">
+            <label class="engine-selector-label" for="engineSelector">Select STT Engine</label>
+            <select id="engineSelector" class="engine-selector">
+                <option value="vosk">Vosk (Fast, Real-time)</option>
+                <!--option value="whisper">Whisper.cpp (High Accuracy)</option-->
+            </select>
+        </div>
 
         <div class="status">
             <div class="status-indicator" id="statusIndicator"></div>
@@ -285,15 +340,8 @@
 
         <div class="error-message" id="errorMessage"></div>
 
-        <div class="info-box success">
-            <strong>🚀 Phase 2 Features:</strong>
-            <ul class="features-list">
-                <li>100% on-device processing (no cloud API)</li>
-                <li>Complete privacy - audio never leaves your browser</li>
-                <li>Zero network costs for transcription</li>
-                <li>Works offline after initial model download</li>
-                <li>Cross-browser compatible (Chrome, Firefox, Safari, Edge)</li>
-            </ul>
+        <div class="info-box success" id="engineInfo">
+            <strong>🚀 Loading engine information...</strong>
         </div>
 
         <div class="transcript-history">
@@ -302,308 +350,19 @@
         </div>
     </div>
 
+    <!-- External Libraries -->
     <!-- Vosk WASM Library -->
     <script src="https://cdn.jsdelivr.net/npm/vosk-browser@0.0.8/dist/vosk.js"></script>
 
-    <script>
-        // Configuration
-        const MODEL_URL = 'http://localhost:8080/vosk-model-small-en-us-0.15.zip'; // serve model from localhost, to avoid CORS/401 issues (github, huggingface, ...)
-        const SAMPLE_RATE = 16000;
+    <!-- Whisper.cpp WASM Library -->
+    <!-- Note: You'll need to host whisper.cpp WASM files locally or from CDN -->
+    <!-- Example: <script src="whisper.js"></script> -->
+    <!--script src="whisper.main.js"></script-->
 
-        // State
-        let voskModel = null;
-        let voskRecognizer = null;
-        let audioContext = null;
-        let mediaStream = null;
-        let audioProcessor = null;
-        let isListening = false;
-        let finalTranscript = '';
-
-        // DOM Elements
-        const recordButton = document.getElementById('recordButton');
-        const statusIndicator = document.getElementById('statusIndicator');
-        const statusText = document.getElementById('statusText');
-        const interimResults = document.getElementById('interimResults');
-        const finalResultsDiv = document.getElementById('finalResults');
-        const errorMessage = document.getElementById('errorMessage');
-        const historyContainer = document.getElementById('historyContainer');
-        const loadingProgress = document.getElementById('loadingProgress');
-        const loadingProgressBar = document.getElementById('loadingProgressBar');
-
-        // Initialize Vosk
-        async function initializeVosk() {
-            try {
-                updateStatus('loading', 'Loading WASM model...');
-                loadingProgress.classList.add('show');
-
-                // Create Vosk model
-                console.log('Creating Vosk model...');
-                voskModel = await Vosk.createModel(MODEL_URL, {
-                    onProgress: (progress) => {
-                        const percentage = Math.round(progress * 100);
-                        loadingProgressBar.style.width = percentage + '%';
-                        statusText.textContent = `Loading model... ${percentage}%`;
-                        console.log(`Model loading: ${percentage}%`);
-                    }
-                });
-
-                console.log('Model loaded successfully');
-
-                // Create recognizer
-                voskRecognizer = new voskModel.KaldiRecognizer(SAMPLE_RATE);
-                voskRecognizer.setWords(true);
-
-                // Set up result callback
-                voskRecognizer.on("result", (message) => {
-                    console.log('Final result:', message); // eg: (1) "what her", (2) "what a"...??
-                    if (message.result && message.result.text) {
-                        const text = message.result.text.trim();
-                        if (text) {
-                            finalTranscript += text + ' ';
-                            finalResultsDiv.textContent = finalTranscript;
-                            finalResultsDiv.classList.remove('empty');
-                            addToHistory(text);
-                        }
-                    }
-                });
-
-                voskRecognizer.on("partialresult", (message) => {
-                    console.log('Partial result:', message); // eg: (1) "what are", (2) "what i" ...??
-                    if (message.result && message.result.partial) {
-                        const text = message.result.partial.trim();
-                        if (text) {
-                            interimResults.textContent = text;
-                            interimResults.classList.remove('empty');
-                        } else if (isListening) {
-                            interimResults.textContent = 'Listening...';
-                            interimResults.classList.remove('empty');
-                        }
-                    }
-                });
-
-                loadingProgress.classList.remove('show');
-                updateStatus('ready', 'Ready to start');
-                recordButton.disabled = false;
-                recordButton.textContent = 'Start Recording';
-
-                console.log('Vosk initialized successfully');
-            } catch (error) {
-                console.error('Error initializing Vosk:', error);
-                showError('Failed to load speech recognition model. Please refresh the page and try again.');
-                updateStatus('error', 'Failed to load model');
-                loadingProgress.classList.remove('show');
-            }
-        }
-
-        // Start recording
-        async function startRecording() {
-            try {
-                // Request microphone access
-                mediaStream = await navigator.mediaDevices.getUserMedia({
-                    audio: {
-                        channelCount: 1,
-                        sampleRate: SAMPLE_RATE,
-                        echoCancellation: true,
-                        noiseSuppression: true,
-                        autoGainControl: true
-                    }
-                });
-
-                // Create audio context
-                audioContext = new (window.AudioContext || window.webkitAudioContext)({
-                    sampleRate: SAMPLE_RATE
-                });
-
-                // Create media stream source
-                const source = audioContext.createMediaStreamSource(mediaStream);
-
-                // Create script processor for audio data
-                const bufferSize = 4096;
-                audioProcessor = audioContext.createScriptProcessor(bufferSize, 1, 1);
-
-                audioProcessor.onaudioprocess = (event) => {
-                    if (!isListening || !voskRecognizer) return;
-
-/*
-                    const inputData = event.inputBuffer.getChannelData(0);
-
-                    // Convert Float32Array to Int16Array for Vosk
-                    const int16Data = new Int16Array(inputData.length);
-                    for (let i = 0; i < inputData.length; i++) {
-                        const s = Math.max(-1, Math.min(1, inputData[i]));
-                        int16Data[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-                    }
-
-                    // Send audio data to recognizer
-                    voskRecognizer.acceptWaveform(int16Data);
-*/
-
-                    // Send the entire AudioBuffer to Vosk (it handles the conversion internally)
-                    voskRecognizer.acceptWaveform(event.inputBuffer);
-
-
-                };
-
-                // Connect the audio graph
-                source.connect(audioProcessor);
-                audioProcessor.connect(audioContext.destination);
-
-                isListening = true;
-                updateStatus('listening', 'Listening...');
-                recordButton.textContent = 'Stop Recording';
-                recordButton.classList.add('listening');
-
-                // Clear previous results
-                finalTranscript = '';
-                interimResults.textContent = 'Listening...';
-                interimResults.classList.remove('empty');
-
-                // Clear error message
-                errorMessage.classList.remove('show');
-
-                console.log('Recording started');
-            } catch (error) {
-                console.error('Error starting recording:', error);
-                if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
-                    showError('Microphone permission denied. Please allow microphone access and try again.');
-                } else if (error.name === 'NotFoundError') {
-                    showError('No microphone found. Please connect a microphone and try again.');
-                } else {
-                    showError('Failed to start recording. Please try again.');
-                }
-                stopRecording();
-            }
-        }
-
-        // Stop recording
-        function stopRecording() {
-            isListening = false;
-
-            // Stop audio processing
-            if (audioProcessor) {
-                audioProcessor.disconnect();
-                audioProcessor = null;
-            }
-
-            // Stop media stream
-            if (mediaStream) {
-                mediaStream.getTracks().forEach(track => track.stop());
-                mediaStream = null;
-            }
-
-            // Close audio context
-            if (audioContext) {
-                audioContext.close();
-                audioContext = null;
-            }
-
-/*
-            // Get final result from recognizer
-            if (voskRecognizer) {
-                try {
-                    const finalResult = voskRecognizer.finalResult(); // ERROR: voskRecognizer.finalResult() is not a function
-                    console.log('Final result on stop:', finalResult);
-                    if (finalResult && finalResult.text) {
-                        const text = finalResult.text.trim();
-                        if (text) {
-                            finalTranscript += text + ' ';
-                            finalResultsDiv.textContent = finalTranscript;
-                            finalResultsDiv.classList.remove('empty');
-                            addToHistory(text);
-                        }
-                    }
-                } catch (error) {
-                    console.error('Error getting final result:', error);
-                }
-            }
-*/
-            // Note: Final results are automatically sent via the 'result' event callback
-            // No need to manually request them here
-
-            updateStatus('ready', 'Ready to start');
-            recordButton.textContent = 'Start Recording';
-            recordButton.classList.remove('listening');
-
-            // Reset interim results
-            if (!finalTranscript) {
-                interimResults.textContent = 'Partial text will appear here as you speak...';
-                interimResults.classList.add('empty');
-            } else {
-                interimResults.textContent = 'Click "Start Recording" to continue...';
-                interimResults.classList.remove('empty');
-            }
-
-            console.log('Recording stopped');
-        }
-
-        // Update status UI
-        function updateStatus(state, text) {
-            statusText.textContent = text;
-            statusIndicator.className = 'status-indicator';
-
-            if (state === 'listening' || state === 'loading') {
-                statusIndicator.classList.add(state);
-            } else if (state === 'ready') {
-                statusIndicator.classList.add('ready');
-            }
-        }
-
-        // Show error message
-        function showError(message) {
-            errorMessage.textContent = message;
-            errorMessage.classList.add('show');
-
-            // Auto-hide after 10 seconds
-            setTimeout(() => {
-                errorMessage.classList.remove('show');
-            }, 10000);
-        }
-
-        // Add transcript to history
-        function addToHistory(transcript) {
-            const historyItem = document.createElement('div');
-            historyItem.className = 'history-item';
-
-            const timestamp = document.createElement('div');
-            timestamp.className = 'history-timestamp';
-            timestamp.textContent = new Date().toLocaleTimeString();
-
-            const text = document.createElement('div');
-            text.textContent = transcript;
-
-            historyItem.appendChild(timestamp);
-            historyItem.appendChild(text);
-
-            historyContainer.insertBefore(historyItem, historyContainer.firstChild);
-
-            // Limit history to 10 items
-            while (historyContainer.children.length > 10) {
-                historyContainer.removeChild(historyContainer.lastChild);
-            }
-        }
-
-        // Button click handler
-        recordButton.addEventListener('click', () => {
-            if (isListening) {
-                stopRecording();
-            } else {
-                startRecording();
-            }
-        });
-
-        // Keyboard shortcuts
-        document.addEventListener('keydown', (event) => {
-            // Space bar to toggle recording (when not typing in an input)
-            if (event.code === 'Space' && event.target === document.body && !recordButton.disabled) {
-                event.preventDefault();
-                recordButton.click();
-            }
-        });
-
-        // Initialize on page load
-        window.addEventListener('load', () => {
-            initializeVosk();
-        });
-    </script>
+    <!-- Core Application -->
+    <script src="js/core/STTEngine.js"></script>
+    <script src="js/engines/VoskEngine.js"></script>
+    <script src="js/engines/WhisperEngine.js"></script>
+    <script src="js/core/app.js"></script>
 </body>
 </html>

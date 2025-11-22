@@ -1,71 +1,189 @@
 # Speech-to-Text Web Application
 
-A progressive implementation of browser-based speech recognition, evolving from cloud-based to on-device WebAssembly processing.
+A progressive implementation of browser-based speech recognition with a **plugin architecture** supporting multiple STT engines, evolving from cloud-based to on-device WebAssembly processing.
 
 ## 🎯 Project Overview
 
-This project implements high-quality speech-to-text in the browser with complete privacy and offline capability using WebAssembly.
+This project implements high-quality speech-to-text in the browser with complete privacy and offline capability using WebAssembly. The modular plugin architecture allows you to choose between different STT engines based on your needs.
 
 ### Architecture Evolution
 
 ```
-Phase 1 (DEPRECATED)          Phase 2 (CURRENT)
-+----------------+             +------------------+
-|    Browser     |             |     Browser      |
-| - Web Speech   |             | - Vosk WASM      |
-| - Cloud API ☁️ |             | - On-Device 🔒   |
-+----------------+             +------------------+
-     ↓ Internet                     ↓ No Network
-  Google Cloud                   Local Processing
+Phase 1 (DEPRECATED)          Phase 2 (Previous)           Phase 3 (CURRENT)
++----------------+             +------------------+         +----------------------+
+|    Browser     |             |     Browser      |         |      Browser         |
+| - Web Speech   |             | - Vosk WASM      |         | - Plugin Engine:     |
+| - Cloud API ☁️ |             | - On-Device 🔒   |         |   * Vosk (Fast)      |
++----------------+             +------------------+         |   * Whisper (Accurate)|
+     ↓ Internet                     ↓ No Network            +----------------------+
+  Google Cloud                   Local Processing               Local Processing
 ```
 
-## 🚀 Phase 2: On-Device WebAssembly STT (CURRENT)
+## 🚀 Phase 3: Multi-Engine Plugin Architecture (CURRENT)
 
-**Goal:** Private, offline speech recognition using WebAssembly
+**Goal:** Modular STT system supporting multiple engines with easy extensibility
 
 **Status:** ✅ Complete
 
-**Technology:** Vosk WASM
+**Technologies:** Vosk WASM, Whisper.cpp WASM
 
 ### Key Features
 
-✅ **100% On-Device Processing** - All speech recognition happens locally in the browser
-✅ **Complete Privacy** - Audio never leaves your device, no cloud services
+✅ **Plugin Architecture** - Easily switch between different STT engines
+✅ **Multiple Engine Support** - Vosk (fast, real-time) and Whisper.cpp (high accuracy)
+✅ **100% On-Device Processing** - All speech recognition happens locally
+✅ **Complete Privacy** - Audio never leaves your device
 ✅ **Offline Capable** - Works without internet after initial model download
-✅ **Zero Network Costs** - No API calls for transcription
-✅ **Cross-Browser Support** - Works on Chrome, Firefox, Safari, Edge
-✅ **Real-time Transcription** - Partial and final results as you speak
-✅ **Progress Indicator** - Visual feedback during model loading
-✅ **Transcript History** - Saves last 10 transcriptions with timestamps
-✅ **Keyboard Shortcuts** - Space bar to toggle recording
-✅ **Responsive UI** - Beautiful gradient design with status indicators
+✅ **Modular Codebase** - Clean separation between core app and engine plugins
+✅ **Easy to Extend** - Add new STT engines by implementing the base class
 
-### How to Use
+### Available Engines
 
-1. **Open the Application**
-   ```bash
-   # Simply open index.html in any modern browser
-   # Or serve with a local server:
-   python3 -m http.server 8000
-   # Then navigate to: http://localhost:8000
-   ```
+#### 🚀 Vosk Engine
+- **Best for:** Real-time transcription, fast processing
+- **Model size:** ~40MB (small model)
+- **Latency:** Very low (<500ms)
+- **Accuracy:** Good for general speech
+- **Features:** Real-time partial results, streaming recognition
 
-2. **Wait for Model Loading**
-   - First load will download ~40MB Vosk model
-   - Progress bar shows download status (10-30 seconds)
-   - Model is cached for future use
+#### 🎯 Whisper.cpp Engine
+- **Best for:** High-accuracy transcription, batch processing
+- **Model size:** ~75MB (tiny model), larger models available
+- **Latency:** Moderate (processes in chunks)
+- **Accuracy:** Excellent, state-of-the-art
+- **Features:** Punctuation, capitalization, multi-language support
 
-3. **Grant Microphone Permission**
-   - Click "Start Recording" when ready
-   - Allow microphone access when prompted
+## 📁 Project Structure
 
-4. **Start Speaking**
-   - Speak clearly into your microphone
-   - Partial results appear in real-time as you speak
-   - Final results are saved in the transcript box and history
-   - Click "Stop Recording" or press Space bar when done
+```
+.
+├── index.html                      # Main HTML with UI
+├── vosk-model-small-en-us-0.15.zip # Vosk model file
+├── js/
+│   ├── core/
+│   │   ├── STTEngine.js           # Base class for all engines
+│   │   └── app.js                  # Main application logic
+│   └── engines/
+│       ├── VoskEngine.js           # Vosk WASM implementation
+│       └── WhisperEngine.js        # Whisper.cpp implementation
+└── README.md
+```
 
-### Browser Compatibility
+### Architecture Design
+
+**STTEngine Base Class** (`js/core/STTEngine.js`)
+- Abstract base class defining the interface for all STT engines
+- Methods: `initialize()`, `startListening()`, `stopListening()`, `processAudio()`
+- Callbacks: `onPartialResult()`, `onFinalResult()`, `onError()`, `onStatusChange()`, `onProgress()`
+
+**VoskEngine** (`js/engines/VoskEngine.js`)
+- Implements real-time streaming speech recognition
+- Processes audio continuously with low latency
+- Provides both partial and final results
+
+**WhisperEngine** (`js/engines/WhisperEngine.js`)
+- Implements batch processing for high accuracy
+- Collects audio chunks and processes them together
+- Note: Requires whisper.cpp WASM library (not included in CDN)
+
+**Main App** (`js/core/app.js`)
+- Manages UI interactions
+- Handles engine switching
+- Coordinates callbacks and events
+
+## 🛠️ How to Use
+
+### 1. **Set Up Local Server**
+
+The models need to be served via HTTP to avoid CORS issues:
+
+```bash
+# Option 1: Python
+python3 -m http.server 8080
+
+# Option 2: Node.js
+npx serve -p 8080 .
+
+# Option 3: PHP
+php -S localhost:8080
+```
+
+### 2. **Open the Application**
+
+Navigate to: `http://localhost:8080`
+
+### 3. **Select an Engine**
+
+Choose your preferred STT engine from the dropdown:
+- **Vosk (Fast, Real-time)** - For interactive conversations
+- **Whisper.cpp (High Accuracy)** - For precise transcription
+
+### 4. **Wait for Model Loading**
+
+- First load downloads the model (~40-75MB depending on engine)
+- Progress bar shows download status
+- Model is cached for future use
+
+### 5. **Start Recording**
+
+- Click "Start Recording" when ready
+- Grant microphone permission if prompted
+- Speak clearly into your microphone
+- Click "Stop Recording" when done
+
+## 🔌 Adding a New Engine
+
+To add a new STT engine, create a new class that extends `STTEngine`:
+
+```javascript
+// js/engines/MyNewEngine.js
+class MyNewEngine extends STTEngine {
+    getInfo() {
+        return {
+            name: 'My New Engine',
+            version: '1.0.0',
+            description: 'Description of my engine',
+            features: ['Feature 1', 'Feature 2']
+        };
+    }
+
+    async initialize(config = {}) {
+        // Load your model
+        // Set up your engine
+        this.isInitialized = true;
+        this._emitStatusChange('ready', 'Ready');
+    }
+
+    async startListening(audioConfig = {}) {
+        // Set up microphone
+        // Start processing audio
+        this.isListening = true;
+        this._emitStatusChange('listening', 'Listening...');
+    }
+
+    async stopListening() {
+        // Clean up resources
+        this.isListening = false;
+        this._emitStatusChange('ready', 'Ready');
+    }
+
+    processAudio(audioData) {
+        // Process audio and emit results
+        this._emitPartialResult('partial text...');
+        this._emitFinalResult('final text');
+    }
+}
+```
+
+Then register it in `js/core/app.js`:
+
+```javascript
+registerEngines() {
+    this.engines.myNewEngine = new MyNewEngine();
+}
+```
+
+## 🌐 Browser Compatibility
 
 ✅ **Fully Supported:**
 - Google Chrome 90+
@@ -73,137 +191,210 @@ Phase 1 (DEPRECATED)          Phase 2 (CURRENT)
 - Firefox 88+
 - Safari 14+
 - Brave Browser
-- Any modern browser with WebAssembly support
 
 **Requirements:**
 - WebAssembly support
 - Web Audio API support
 - getUserMedia API (for microphone access)
 
-### Technical Details
+## 📊 Engine Comparison
 
-**Vosk WASM Implementation:**
-- **Library:** vosk-browser v0.0.8 (CDN)
-- **Model:** vosk-model-small-en-us-0.15 (~40MB)
-- **Sample Rate:** 16kHz
-- **Audio Processing:** ScriptProcessorNode with 4096 buffer size
-- **Format Conversion:** Float32 → Int16 for Vosk processing
+| Feature | Vosk | Whisper.cpp |
+|---------|------|-------------|
+| **Speed** | ⚡ Very Fast | 🐌 Moderate |
+| **Accuracy** | ✅ Good | 🎯 Excellent |
+| **Latency** | <500ms | 1-3s (batch) |
+| **Model Size** | ~40MB | ~75MB+ |
+| **Real-time** | ✅ Yes | ❌ No (chunks) |
+| **Punctuation** | ❌ No | ✅ Yes |
+| **Languages** | Model-specific | Multi-language |
+| **Use Case** | Live conversation | Accurate transcription |
 
-**Audio Pipeline:**
+## 🔧 Configuration
+
+### Vosk Configuration
+
+```javascript
+{
+    modelUrl: 'http://localhost:8080/vosk-model-small-en-us-0.15.zip',
+    sampleRate: 16000
+}
 ```
-Microphone → getUserMedia → AudioContext → ScriptProcessor → Vosk WASM → Results
+
+### Whisper.cpp Configuration
+
+```javascript
+{
+    modelUrl: 'http://localhost:8080/ggml-tiny.en.bin',
+    sampleRate: 16000,
+    maxChunkDuration: 30  // seconds per chunk
+}
 ```
 
-**Event Callbacks:**
-- `onProgress` - Model download progress (0-100%)
-- `result` - Final transcription result
-- `partialresult` - Interim transcription updates
+## 📦 Setting Up Whisper.cpp
 
-**Performance:**
-- Model Load: 10-30 seconds (first time only)
-- Recognition Latency: <500ms
-- Memory Usage: ~100-150MB during active recognition
+**📘 See [QUICKSTART.md](QUICKSTART.md) for quick instructions**
+**📕 See [WHISPER_SETUP.md](WHISPER_SETUP.md) for detailed setup guide**
 
-### Advantages over Phase 1
+### Quick Setup
 
-| Feature | Phase 1 (Web Speech API) | Phase 2 (Vosk WASM) |
-|---------|-------------------------|---------------------|
-| **Privacy** | ❌ Audio sent to cloud | ✅ 100% on-device |
-| **Network** | ❌ Requires internet | ✅ Works offline |
-| **Cost** | ⚠️ API limits possible | ✅ Zero cost |
-| **Browser Support** | ❌ Chrome only | ✅ All modern browsers |
-| **Consistency** | ⚠️ Provider-dependent | ✅ Consistent everywhere |
-| **Latency** | ⚠️ Network-dependent | ✅ Low & predictable |
+The Whisper engine requires the whisper.cpp WASM library. Here's the quick version:
 
-## 🚀 Future Enhancements (Phase 3+)
+**Option 1: Use the helper script**
+```bash
+# After building whisper.cpp
+bash setup-whisper.sh /path/to/whisper.cpp
+```
+
+**Option 2: Manual setup**
+
+1. **Build whisper.cpp WASM:**
+   ```bash
+   cd /path/to/whisper.cpp/examples/whisper.wasm
+   bash build.sh
+   ```
+
+2. **Copy the generated files:**
+   ```bash
+   # Copy from whisper.cpp/examples/whisper.wasm/ to your project root
+   cp whisper.js /path/to/hello/
+   cp whisper.wasm /path/to/hello/
+   cp /path/to/ggml-tiny.en.bin /path/to/hello/
+   ```
+
+3. **Enable in index.html:**
+   ```html
+   <!-- Change this line (around line 359): -->
+   <script src="whisper.js"></script>
+   ```
+
+<<<<<<< Updated upstream
+**Files you need:**
+- `whisper.js` - JavaScript wrapper (generated by build)
+- `whisper.wasm` - WASM binary (generated by build)
+- `ggml-tiny.en.bin` - Model file (download separately)
+
+**Where to find them after building:**
+```
+whisper.cpp/examples/whisper.wasm/
+├── whisper.js          ← Copy this
+├── whisper.wasm        ← Copy this
+└── build.sh
+```
+=======
+
+### TODO: Setup and use whisper
+
+To setup whisper.cpp (MacOS)
+
+1. Install emscripten
+brew install emscripten
+
+2. Clone whisper.cpp github repo
+git clone https://github.com/ggml-org/whisper.cpp.git
+
+3. cd whisper.cpp
+
+4. Download model (use whisper.cpp script, tiny.en)
+./models/download-ggml-model.sh tiny.en
+
+5. Build whisper.cpp cli (not mandatory):
+cmake -B build
+cmake --build build -j --config Release
+
+6. Test whisper.cpp cli (STT)
+./build/bin/whisper-cli -f samples/jfk.wav -m models/ggml-tiny.en.bin
+
+7. Build dedicated WASM example version with CMake + Emscripten: use whisper.cpp wasm example (examples/whisper.wasm/)
+
+// create build folder under project root folder
+mkdir build-wasm
+cd build-wasm
+
+// configure CMake for WebAssembly, build dedicated browser-focused WASM example
+// force using C++17 (emcmake uses C++14 => build error)
+// default is WHISPER_WASM_SINGLE_FILE=ON => single file main.js
+emcmake cmake .. \
+  -DCMAKE_CXX_STANDARD=17 \
+  -DWHISPER_WASM=ON
+
+// build browser WASM version, not full version WASM whisper.cpp
+emmake make
+
+// generated output files (newer version of whisper.cpp produces a modular artifacts)
+build-wasm/bin/
+  libmain.js
+  whisper.wasm
+    /main.js // single file with WASM data (base 64 URI) embedded inside
+
+// copy and use main.js
+
+### END TODO
+
+>>>>>>> Stashed changes
+
+## 🚀 Future Enhancements
 
 ### Potential Improvements
-- Multi-language support (French, Spanish, German, etc.)
-- Larger/more accurate models (medium, large variants)
-- Alternative WASM engines (Whisper.cpp, Faster-Whisper)
+- Additional engines (Faster-Whisper, Conformer, etc.)
+- Multi-language support with auto-detection
 - Custom vocabulary for domain-specific terms
 - Voice Activity Detection (VAD) for automatic start/stop
 - Speaker diarization (who said what)
-- Automatic punctuation and capitalization
-- Real-time translation
+- Real-time translation between languages
+- Export transcripts to various formats (TXT, SRT, VTT)
+- Cloud sync and storage options
+- Mobile-optimized version
 
-## 📊 Comparison with Other WASM STT Options
-
-| Engine | Model Size | Accuracy | Speed | Browser Support |
-|--------|-----------|----------|-------|-----------------|
-| **Vosk** ✅ | ~40MB (small) | Good | Fast | Excellent |
-| Whisper.cpp | ~75MB (tiny) | Excellent | Medium | Good |
-| DeepSpeech | Archived | N/A | N/A | Deprecated |
-
-**Why Vosk?**
-- Best balance of size, speed, and accuracy
-- Specifically optimized for browser use
-- Active development and community support
-- Multiple model sizes available
-
-## 📜 Phase History
-
-### Phase 1: Web Speech API (DEPRECATED)
-
-**Implementation:** Chrome's native speech recognition
-
-**Limitations:**
-- Only worked in Chrome-based browsers
-- Required internet connection
-- Audio sent to Google's servers
-- Subject to API rate limits and privacy concerns
-
-**Status:** Replaced by Phase 2
-
-## 📁 Project Structure
-
-```
-.
-├── index.html          # Phase 2 - Vosk WASM STT implementation
-└── README.md          # This file
-```
-
-## 🛠️ Development
-
-**Current Phase:** Phase 2 (Complete)
-**Branch:** `claude/wasm-stt-upgrade-015Fb6T2Le4B8LKLxsQouXAc`
-
-### Running Locally
-
-No build process required! Simply:
-```bash
-# Option 1: Open directly in browser
-open index.html
-
-# Option 2: Use local server (recommended)
-python3 -m http.server 8000
-# or
-npx serve .
-```
-
-### Troubleshooting
+## 🐛 Troubleshooting
 
 **Model fails to load:**
-- Check internet connection (needed for first-time download)
-- Clear browser cache and reload
-- Check browser console for detailed errors
+- Ensure you're running a local HTTP server (not file://)
+- Check that the model file exists in the correct location
+- Check browser console for CORS or network errors
 
 **No microphone access:**
 - Grant microphone permissions in browser settings
 - Ensure microphone is connected and working
 - Check that no other app is using the microphone
 
+**Whisper engine not available:**
+- The Whisper engine requires whisper.cpp WASM files
+- Follow the "Setting Up Whisper.cpp" section above
+- For testing, use the Vosk engine which works out of the box
+
 **Poor recognition accuracy:**
+- Try switching engines (Whisper for higher accuracy)
 - Speak clearly at a moderate pace
 - Reduce background noise
-- Move closer to the microphone
-- Consider using a higher-quality external microphone
+- Use a high-quality external microphone
 
-**High memory usage:**
-- Normal for WASM-based speech recognition
-- Close other browser tabs to free up memory
-- Refresh page if memory grows too large
+## 📜 Version History
+
+### Phase 3: Multi-Engine Plugin Architecture (CURRENT)
+- ✅ Plugin architecture with base STTEngine class
+- ✅ Modular code structure (core + engines)
+- ✅ Support for Vosk and Whisper.cpp
+- ✅ Engine selector UI
+- ✅ Easy extensibility for new engines
+
+### Phase 2: On-Device Vosk WASM
+- ✅ Single-engine implementation with Vosk
+- ✅ 100% on-device processing
+- ✅ Real-time transcription
+- ✅ Offline capability
+
+### Phase 1: Web Speech API (DEPRECATED)
+- ❌ Cloud-based processing
+- ❌ Chrome-only support
+- ❌ Privacy concerns
 
 ## 📝 License
 
 MIT - This is an experimental project for learning purposes.
+
+## 🙏 Acknowledgments
+
+- **Vosk** - Alpha Cephei Inc. (https://alphacephei.com/vosk/)
+- **Whisper.cpp** - Georgi Gerganov (https://github.com/ggerganov/whisper.cpp)
+- **OpenAI Whisper** - OpenAI (https://github.com/openai/whisper)

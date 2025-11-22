@@ -307,7 +307,7 @@
 
     <script>
         // Configuration
-        const MODEL_URL = 'https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip';
+        const MODEL_URL = 'http://localhost:8080/vosk-model-small-en-us-0.15.zip'; // serve model from localhost, to avoid CORS/401 issues (github, huggingface, ...)
         const SAMPLE_RATE = 16000;
 
         // State
@@ -355,7 +355,7 @@
 
                 // Set up result callback
                 voskRecognizer.on("result", (message) => {
-                    console.log('Final result:', message);
+                    console.log('Final result:', message); // eg: (1) "what her", (2) "what a"...??
                     if (message.result && message.result.text) {
                         const text = message.result.text.trim();
                         if (text) {
@@ -368,7 +368,7 @@
                 });
 
                 voskRecognizer.on("partialresult", (message) => {
-                    console.log('Partial result:', message);
+                    console.log('Partial result:', message); // eg: (1) "what are", (2) "what i" ...??
                     if (message.result && message.result.partial) {
                         const text = message.result.partial.trim();
                         if (text) {
@@ -424,6 +424,7 @@
                 audioProcessor.onaudioprocess = (event) => {
                     if (!isListening || !voskRecognizer) return;
 
+/*
                     const inputData = event.inputBuffer.getChannelData(0);
 
                     // Convert Float32Array to Int16Array for Vosk
@@ -435,6 +436,12 @@
 
                     // Send audio data to recognizer
                     voskRecognizer.acceptWaveform(int16Data);
+*/
+
+                    // Send the entire AudioBuffer to Vosk (it handles the conversion internally)
+                    voskRecognizer.acceptWaveform(event.inputBuffer);
+
+
                 };
 
                 // Connect the audio graph
@@ -490,10 +497,11 @@
                 audioContext = null;
             }
 
+/*
             // Get final result from recognizer
             if (voskRecognizer) {
                 try {
-                    const finalResult = voskRecognizer.finalResult();
+                    const finalResult = voskRecognizer.finalResult(); // ERROR: voskRecognizer.finalResult() is not a function
                     console.log('Final result on stop:', finalResult);
                     if (finalResult && finalResult.text) {
                         const text = finalResult.text.trim();
@@ -508,6 +516,9 @@
                     console.error('Error getting final result:', error);
                 }
             }
+*/
+            // Note: Final results are automatically sent via the 'result' event callback
+            // No need to manually request them here
 
             updateStatus('ready', 'Ready to start');
             recordButton.textContent = 'Start Recording';

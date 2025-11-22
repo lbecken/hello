@@ -18,7 +18,10 @@ const intentInterpreter = new IntentInterpreter();
 const actionExecutor = new ActionExecutor();
 
 // Create WebSocket server
-const wss = new WebSocketServer({ port: PORT });
+const wss = new WebSocketServer({
+    port: PORT,
+    host: '0.0.0.0'  // Listen on all network interfaces
+});
 
 console.log(`🚀 WebSocket server started on ws://localhost:${PORT}`);
 console.log(`📡 Ready to receive STT text and interpret intents`);

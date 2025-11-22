@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speech-to-Text MVP - Phase 1</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 10px;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ccc;
+            transition: all 0.3s ease;
+        }
+
+        .status-indicator.listening {
+            background: #ef4444;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.5;
+                transform: scale(1.1);
+            }
+        }
+
+        .status-text {
+            color: #666;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        button {
+            width: 100%;
+            padding: 18px 32px;
+            font-size: 18px;
+            font-weight: 600;
+            color: white;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 30px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button.listening {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .results-section {
+            margin-top: 20px;
+        }
+
+        .results-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .results-box {
+            background: #f9fafb;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 20px;
+            min-height: 80px;
+            margin-bottom: 20px;
+            font-size: 16px;
+            line-height: 1.6;
+            color: #333;
+        }
+
+        .results-box.interim {
+            border-color: #fbbf24;
+            background: #fffbeb;
+        }
+
+        .results-box.final {
+            border-color: #10b981;
+            background: #f0fdf4;
+        }
+
+        .results-box.empty {
+            color: #999;
+            font-style: italic;
+        }
+
+        .error-message {
+            background: #fef2f2;
+            border: 2px solid #fecaca;
+            border-radius: 10px;
+            padding: 15px;
+            color: #991b1b;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        .info-box {
+            background: #eff6ff;
+            border-left: 4px solid #3b82f6;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-size: 14px;
+            color: #1e40af;
+        }
+
+        .transcript-history {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid #e5e7eb;
+        }
+
+        .history-item {
+            background: #f9fafb;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 3px solid #667eea;
+        }
+
+        .history-timestamp {
+            font-size: 11px;
+            color: #999;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 Speech-to-Text MVP</h1>
+        <p class="subtitle">Phase 1: Browser-based Speech Recognition</p>
+
+        <div class="status">
+            <div class="status-indicator" id="statusIndicator"></div>
+            <div class="status-text" id="statusText">Ready to start</div>
+        </div>
+
+        <button id="recordButton">Start Recording</button>
+
+        <div class="results-section">
+            <div class="results-label">Partial Results (Real-time)</div>
+            <div class="results-box interim empty" id="interimResults">
+                Partial text will appear here as you speak...
+            </div>
+
+            <div class="results-label">Final Results</div>
+            <div class="results-box final empty" id="finalResults">
+                Final transcription will appear here...
+            </div>
+        </div>
+
+        <div class="error-message" id="errorMessage"></div>
+
+        <div class="info-box">
+            <strong>ℹ️ Note:</strong> This uses the Web Speech API, which works best in Chrome-based browsers.
+            Make sure to allow microphone permissions when prompted.
+        </div>
+
+        <div class="transcript-history">
+            <div class="results-label">Transcript History</div>
+            <div id="historyContainer"></div>
+        </div>
+    </div>
+
+    <script>
+        // Check for browser support
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+        if (!SpeechRecognition) {
+            document.getElementById('errorMessage').textContent =
+                'Speech Recognition is not supported in this browser. Please use Chrome, Edge, or another Chromium-based browser.';
+            document.getElementById('errorMessage').classList.add('show');
+            document.getElementById('recordButton').disabled = true;
+        }
+
+        // Initialize Speech Recognition
+        let recognition = null;
+        let isListening = false;
+        let finalTranscript = '';
+
+        // DOM Elements
+        const recordButton = document.getElementById('recordButton');
+        const statusIndicator = document.getElementById('statusIndicator');
+        const statusText = document.getElementById('statusText');
+        const interimResults = document.getElementById('interimResults');
+        const finalResultsDiv = document.getElementById('finalResults');
+        const errorMessage = document.getElementById('errorMessage');
+        const historyContainer = document.getElementById('historyContainer');
+
+        // Initialize recognition if supported
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+
+            // Configuration
+            recognition.continuous = true;  // Keep listening until stopped
+            recognition.interimResults = true;  // Show partial results
+            recognition.lang = 'en-US';  // Language
+            recognition.maxAlternatives = 1;  // Number of alternative transcriptions
+
+            // Event: Recognition starts
+            recognition.onstart = () => {
+                isListening = true;
+                updateUI('listening');
+                console.log('Speech recognition started');
+            };
+
+            // Event: Recognition ends
+            recognition.onend = () => {
+                isListening = false;
+                updateUI('ready');
+                console.log('Speech recognition ended');
+            };
+
+            // Event: Results received
+            recognition.onresult = (event) => {
+                let interimTranscript = '';
+
+                // Process all results
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+
+                    if (event.results[i].isFinal) {
+                        // Final result
+                        finalTranscript += transcript + ' ';
+                        addToHistory(transcript);
+                    } else {
+                        // Interim result
+                        interimTranscript += transcript;
+                    }
+                }
+
+                // Update UI with results
+                if (interimTranscript) {
+                    interimResults.textContent = interimTranscript;
+                    interimResults.classList.remove('empty');
+                } else {
+                    interimResults.textContent = 'Listening...';
+                    interimResults.classList.remove('empty');
+                }
+
+                if (finalTranscript) {
+                    finalResultsDiv.textContent = finalTranscript;
+                    finalResultsDiv.classList.remove('empty');
+                }
+
+                console.log('Interim:', interimTranscript);
+                console.log('Final:', finalTranscript);
+            };
+
+            // Event: Error occurred
+            recognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+
+                let errorMsg = '';
+                switch(event.error) {
+                    case 'no-speech':
+                        errorMsg = 'No speech detected. Please try again.';
+                        break;
+                    case 'audio-capture':
+                        errorMsg = 'No microphone found. Please ensure your microphone is connected.';
+                        break;
+                    case 'not-allowed':
+                        errorMsg = 'Microphone permission denied. Please allow microphone access in your browser settings.';
+                        break;
+                    case 'network':
+                        errorMsg = 'Network error occurred. Please check your internet connection.';
+                        break;
+                    default:
+                        errorMsg = `Error occurred: ${event.error}`;
+                }
+
+                showError(errorMsg);
+
+                // Stop listening on error
+                if (isListening) {
+                    stopRecording();
+                }
+            };
+        }
+
+        // Button click handler
+        recordButton.addEventListener('click', () => {
+            if (isListening) {
+                stopRecording();
+            } else {
+                startRecording();
+            }
+        });
+
+        // Start recording
+        function startRecording() {
+            if (!recognition) return;
+
+            try {
+                // Clear previous results
+                finalTranscript = '';
+                interimResults.textContent = 'Listening...';
+                interimResults.classList.remove('empty');
+
+                // Clear error message
+                errorMessage.classList.remove('show');
+
+                // Start recognition
+                recognition.start();
+            } catch (error) {
+                console.error('Error starting recognition:', error);
+                showError('Failed to start recording. Please try again.');
+            }
+        }
+
+        // Stop recording
+        function stopRecording() {
+            if (!recognition) return;
+
+            try {
+                recognition.stop();
+            } catch (error) {
+                console.error('Error stopping recognition:', error);
+            }
+        }
+
+        // Update UI based on state
+        function updateUI(state) {
+            if (state === 'listening') {
+                recordButton.textContent = 'Stop Recording';
+                recordButton.classList.add('listening');
+                statusIndicator.classList.add('listening');
+                statusText.textContent = 'Listening...';
+            } else {
+                recordButton.textContent = 'Start Recording';
+                recordButton.classList.remove('listening');
+                statusIndicator.classList.remove('listening');
+                statusText.textContent = 'Ready to start';
+
+                // Reset interim results
+                if (!finalTranscript) {
+                    interimResults.textContent = 'Partial text will appear here as you speak...';
+                    interimResults.classList.add('empty');
+                } else {
+                    interimResults.textContent = 'Click "Start Recording" to continue...';
+                    interimResults.classList.remove('empty');
+                }
+            }
+        }
+
+        // Show error message
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.classList.add('show');
+
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                errorMessage.classList.remove('show');
+            }, 5000);
+        }
+
+        // Add transcript to history
+        function addToHistory(transcript) {
+            const historyItem = document.createElement('div');
+            historyItem.className = 'history-item';
+
+            const timestamp = document.createElement('div');
+            timestamp.className = 'history-timestamp';
+            timestamp.textContent = new Date().toLocaleTimeString();
+
+            const text = document.createElement('div');
+            text.textContent = transcript;
+
+            historyItem.appendChild(timestamp);
+            historyItem.appendChild(text);
+
+            historyContainer.insertBefore(historyItem, historyContainer.firstChild);
+
+            // Limit history to 10 items
+            while (historyContainer.children.length > 10) {
+                historyContainer.removeChild(historyContainer.lastChild);
+            }
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (event) => {
+            // Space bar to toggle recording (when not typing in an input)
+            if (event.code === 'Space' && event.target === document.body) {
+                event.preventDefault();
+                recordButton.click();
+            }
+        });
+    </script>
+</body>
+</html>

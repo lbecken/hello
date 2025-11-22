@@ -269,7 +269,14 @@
             // Configuration
             recognition.continuous = true;  // Keep listening until stopped
             recognition.interimResults = true;  // Show partial results
+
+            // in Chrome: chrome://settings/languages
+            // STT => works extremely well!
             recognition.lang = 'en-US';  // Language
+            //recognition.lang = 'fr-FR';  // Language
+            //recognition.lang = 'pt-BR';  // Language
+            //recognition.lang = 'de-DE';  // Language
+
             recognition.maxAlternatives = 1;  // Number of alternative transcriptions
 
             // Event: Recognition starts

@@ -178,8 +178,21 @@ async function handleSTT(ws, message) {
 // Handle graceful shutdown
 process.on('SIGINT', () => {
     console.log('\n\n🛑 Shutting down WebSocket server...');
+
+    // Close all active connections
+    wss.clients.forEach((client) => {
+        client.close();
+    });
+
+    // Close the server
     wss.close(() => {
         console.log('✅ Server closed');
         process.exit(0);
     });
+
+    // Force exit after 5 seconds if graceful shutdown fails
+    setTimeout(() => {
+        console.log('⚠️ Forcing shutdown...');
+        process.exit(0);
+    }, 5000);
 });

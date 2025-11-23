@@ -30,11 +30,13 @@
             <artifactId>spring-boot-starter-webflux</artifactId>
         </dependency>
 
+        <!-- NOTE: DO NOT add spring-boot-starter-websocket - that's for Spring MVC!
+         WebFlux includes reactive WebSocket support already -->
         <!-- Spring Boot WebSocket -->
-        <dependency>
+        <!--dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-websocket</artifactId>
-        </dependency>
+        </dependency-->
 
         <!-- Jackson for JSON -->
         <dependency>

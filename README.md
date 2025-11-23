@@ -66,6 +66,18 @@ Phase 1 (DEPRECATED)          Phase 2 (Previous)           Phase 3 (CURRENT)
 │   └── engines/
 │       ├── VoskEngine.js           # Vosk WASM implementation
 │       └── WhisperEngine.js        # Whisper.cpp implementation
+├── backend/                        # Node.js WebSocket backend (Phase 3)
+│   └── src/
+│       ├── server.js              # WebSocket server
+│       ├── intentInterpreter.js   # Intent interpretation
+│       └── actionExecutor.js      # Action execution
+├── backend-java/                   # Java Spring Boot backend (Phase 4)
+│   └── src/main/java/com/voiceapp/
+│       ├── VoiceIntentApplication.java
+│       ├── config/                 # WebSocket configuration
+│       ├── controller/             # WebSocket handlers
+│       ├── service/                # Business logic (Ollama, Intent, etc.)
+│       └── model/                  # Data models
 └── README.md
 ```
 
@@ -90,6 +102,58 @@ Phase 1 (DEPRECATED)          Phase 2 (Previous)           Phase 3 (CURRENT)
 - Manages UI interactions
 - Handles engine switching
 - Coordinates callbacks and events
+
+## 🔗 Backend Integration (Phase 4 - NEW!)
+
+The project now includes **two backend implementations** for voice intent interpretation and action execution:
+
+### Node.js Backend (Phase 3)
+- **Location:** `backend/`
+- **Technology:** Node.js + WebSocket (ws library)
+- **Port:** 8081
+- **Features:** Pattern-based intent matching, action execution
+- **Quick Start:** See `backend/README.md`
+
+### Java Spring Boot Backend (Phase 4) ⭐ NEW!
+- **Location:** `backend-java/`
+- **Technology:** Spring Boot + WebFlux + Ollama
+- **Port:** 8082
+- **Features:**
+  - 🤖 **LLM-based Intent Interpretation** using Ollama (local, privacy-preserving)
+  - 🚀 **Reactive WebSocket** with Spring WebFlux for non-blocking I/O
+  - 🔧 **Tool Calling** - Structured intent extraction with JSON schemas
+  - 🧠 **Stateful Context** - Multi-step conversations with session memory
+  - ✅ **Validation & Error Handling** - Robust input/output validation
+  - 🔒 **100% Local Processing** - All LLM inference happens on your machine
+
+**Quick Start (Java Backend):**
+```bash
+# 1. Install and start Ollama
+ollama pull llama3.2:3b
+ollama serve
+
+# 2. Build and run
+cd backend-java
+mvn spring-boot:run
+
+# Server starts on ws://localhost:8082/ws/intent
+```
+
+**Documentation:**
+- Full guide: `backend-java/README.md`
+- Quick start: `backend-java/QUICKSTART.md`
+
+### Which Backend Should I Use?
+
+| Feature | Node.js | Java Spring Boot |
+|---------|---------|------------------|
+| **Setup** | ⚡ Very Quick | 🐌 Requires Java + Maven |
+| **Intent Interpretation** | Pattern matching | LLM-based (Ollama) |
+| **Privacy** | Depends on LLM | 100% local |
+| **Accuracy** | Basic | Excellent |
+| **Scalability** | Good | Excellent |
+| **Complexity** | Simple | Advanced |
+| **Best For** | Quick prototypes | Production use |
 
 ## 🛠️ How to Use
 
